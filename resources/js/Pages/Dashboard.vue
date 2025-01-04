@@ -11,19 +11,19 @@
          <button type="button" class="btn btn-primary m-1" @click="showCatergoryModel= true"><i class="fa fa-plus"></i> Add Category</button>
           <button type="button" class="btn btn-primary m-1" @click="showAddTaskModel= true"><i class="fa fa-plus"></i> Add Task</button>
 
-          <!-- Profile Picture -->
           <img :src="`${avatar}`" style="float:right;width:100px;height: 100px">
         </div>
       </div>
 
-      <!-- Tasks Listing Table -->
       <div class="card my-3">
         <div class="card-header">
           <i class="fas fa-table"></i> Manage Your Tasks
         </div>
+<div v-if="successMessage" class="alert success">
+    {{ successMessage }}
+</div>
 
         <div class="card-body">
-          <!-- Search and Filter -->
           <div class="row">
             <div class="col-md-4 form-group">
               <input v-model="searchQuery" class="form-control" type="search" placeholder="Search" aria-label="Search">
@@ -77,6 +77,9 @@
                   <td><img :src="`/storage/${task.image}`" style="width:70px;height: 70px;"></td>
                   <td><button type="button" class="btn btn-success" @click="openEditModal(task)"><i class="fa fa-edit"></i> Edit Task</button></td>
                 </tr>
+                  <tr v-if="filteredTasks.length === 0">
+                    <td colspan="9" class="text-center">No records available</td>
+                  </tr>
               </tbody>
             </table>
           </div>
@@ -112,9 +115,6 @@
       :categories="categories"
       @update-task="handleTaskUpdate"
     />
-
-
-
   </div>
   </div>
   </div>
@@ -132,7 +132,7 @@ import AddTaskModal from './AddTaskModal.vue';
 import EditTaskModal from './EditTaskModal.vue';
 import ConformDelete from './ConformDelete.vue';
 import { Inertia } from '@inertiajs/inertia';
-// import ConfirmationModal from './ConfirmationModal.vue';
+import axios from 'axios';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import '@fortawesome/fontawesome-free/css/all.min.css'
 
@@ -159,13 +159,10 @@ props: {
   data() {
     return {
 
-      // tasks: [],
-      // filteredTasks: [], 
-      // categories: [], 
     filteredTasks: [],
       selectedCategory: "",
       searchQuery: "",
-
+successMessage: "",   
       EditTask: [],
       currentTask: null,
       showEditModal: false,
@@ -174,7 +171,7 @@ props: {
       showAddTaskModel: false,
       selectedTasks: [],
       showConfirmModal: false,
-      taskToDelete: null, // Task to delete
+      taskToDelete: null,
     };
   },
 
@@ -201,24 +198,22 @@ props: {
     },
     filterTasks() {
       
-      // Filter tasks based on the selected category
+ 
       if (this.selectedCategory) {
          this.searchQuery = '';
         this.filteredTasks = this.tasks.filter(
           (task) => task.category.id === parseInt(this.selectedCategory)
         );
       } else {
-        // Show all tasks if no category is selected
+   
         this.filteredTasks = this.tasks;
       }
     },
-    exportToExcel() {
-      // Implement export logic
-    },
+ 
 
   confirmDelete() {
       if (this.selectedTasks.length > 0) {
-        this.taskToDelete = this.selectedTasks[0]; // Select the first task for deletion
+        this.taskToDelete = this.selectedTasks[0]; 
         this.showConfirmModal = true;
        
       } else {
@@ -229,22 +224,29 @@ props: {
       this.showConfirmModal = false;
     },
     handleDelete(to_delete_id) {
-      Inertia.delete(`/tasks/${to_delete_id}`, {
-        onSuccess: () => {
-          // Update the tasks list and close the modal
-          this.tasks = this.tasks.filter((task) => task.id !== to_delete_id);
-          this.selectedTasks = this.selectedTasks.filter(
+
+ axios
+        .delete(`/tasks/${to_delete_id}`)
+        .then(response => {
+         this.filteredTasks = response.data.tasks;
+        this.selectedTasks = this.selectedTasks.filter(
             (id) => id !== to_delete_id
-          );
-           this.showConfirmModal = false;
-          this.closeConfirmModal();
-        },
-        onError: (errors) => {
-          console.error("Failed to delete task:", errors);
-           this.showConfirmModal = false;
-          this.closeConfirmModal();
-        },
-      });
+        );
+
+        this.successMessage = response.data.message;
+
+        this.showConfirmModal = false;
+
+        setTimeout(() => {
+            this.successMessage = "";
+        }, 5000);
+
+    })
+    .catch((error) => {
+        console.error("Failed to delete task:", error);
+        this.showConfirmModal = false;
+    });
+
     },
    
     editTask(task) {
@@ -260,31 +262,42 @@ props: {
     },
 
     handleAddCategory(category) {
-         console.log('Category',category);
-      Inertia.post('add-category', category, {
-        onSuccess: () => {
+
+
+axios
+        .post('/add-category', category)
+  .then(response => {
+     this.categories.push(response.data.category);
+              this.successMessage = response.data.message;
           this.showCatergoryModel = false;
-        },
-        onError: (errors) => {
-          console.error('Error adding category:', errors);
-          
-        },
-      });
+        })
+  .catch((error) => {
+          console.error('Error adding category:', error);
+        });
+
     },
    
    
     handleAddTask(task) {
+axios
+        .post('/add-task', task)
+      .then(response =>  {
 
-       Inertia.post('add-task', task, {
-        onSuccess: () => {
-           this.showTaskModal = false;
-          
-        },
-        onError: (errors) => {
-          console.error('Error adding task:', errors);
-          
-        },
-      });
+    this.successMessage = response.data.message;
+             this.successMessage = response.data.message;
+        this.tasks.push(response.data.task);
+            this.filteredTasks = this.tasks;
+            this.showAddTaskModel = false;
+
+            setTimeout(() => {
+                this.successMessage = "";
+            }, 5000);
+        })
+  .catch((error) => {
+          console.error('Error adding task:', error);
+        });
+      
+   
     },
 
     openEditModal(task) {
@@ -294,15 +307,30 @@ props: {
     },
    
     handleTaskUpdate(edit) {
-   Inertia.post('update-task', edit, {
-        onSuccess: () => {
-          this.showEditModal = false;
-        },
-        onError: (errors) => {
-          console.error('Error adding task:', errors);
+
+ axios
+        .post('/update-task', edit)
+   .then(response => {
+         this.filteredTasks = response.data.tasks;
+        this.successMessage = response.data.message;
           
-        },
-      });
+
+            const index = this.tasks.findIndex(t => t.id === task.id);
+            if (index !== -1) {
+                this.tasks[index] = response.data.task;
+            }
+
+            this.showEditModal = false;
+            setTimeout(() => {
+                this.successMessage = "";
+            }, 5000);
+
+
+        })
+   .catch((error) => {
+          console.error('Error updating task:', error);
+        });
+
     },
 
   
@@ -314,4 +342,44 @@ props: {
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 
 </script>
+<style>
+.alert {
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 5px;
+    font-size: 14px;
+    font-family: Arial, sans-serif;
+    display: inline-block;
+    width: 100%;
+    box-sizing: border-box;
+    color: #fff;
+    text-align: center;
+}
+
+/* Success message */
+.alert.success {
+    background-color: #4caf50; /* Green */
+    border: 1px solid #3e8e41;
+}
+
+
+/* Optional: Animation to fade out messages */
+.alert.fade-out {
+    animation: fadeOut 5s forwards;
+}
+
+/* Fade out keyframes */
+@keyframes fadeOut {
+    0% {
+        opacity: 1;
+    }
+    90% {
+        opacity: 0.1;
+    }
+    100% {
+        opacity: 0;
+        display: none;
+    }
+}
+</style>
 

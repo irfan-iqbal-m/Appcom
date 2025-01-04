@@ -35,6 +35,10 @@ class CategoryController extends Controller
         $category->title = $validated['title'];
         $category->description = $request->description ?? null;
         $category->save();
-        return redirect()->route('dashboard')->with('success', 'Category added successfully.');
+        return response()->json([
+            'success' => true,
+            'message' => 'Category Created successfully',
+            'category' => $category,
+        ]);
     }
 }

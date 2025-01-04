@@ -30,9 +30,10 @@ class TaskController extends Controller
     {
 
         $tasks = Task::with('category')->get();
-        $categories = Category::all();
-        $avatar = auth()->user()->avatar;
-        return response()->json($tasks);
+        return response()->json([
+            'success' => true,
+            'tasks' => $tasks,
+        ]);
     }
 
 
@@ -62,19 +63,12 @@ class TaskController extends Controller
 
         // Save the user
         $obj->save();
-
-
-        $tasks = Task::with('category')->get();
-        $categories = Category::all();
-        $avatar = auth()->user()->avatar;
-        return Inertia::render('Dashboard', [
-            'tasks' => $tasks,
-            'avatar' => $avatar,
-            'categories' => $categories,
+        $task = Task::with('category')->find($obj->id);
+        return response()->json([
+            'success' => true,
+            'message' => 'Task added successfully',
+            'task' => $task,
         ]);
-        // Redirect with success message
-        return redirect()->route('dashboard')
-            ->with('success', 'Task Added');
     }
 
 
@@ -108,10 +102,12 @@ class TaskController extends Controller
         // Save the user
         $obj->save();
 
-
-        // Redirect with success message
-        return redirect()->route('dashboard')
-            ->with('success', 'Task Updated');
+        $tasks = Task::with('category')->get();
+        return response()->json([
+            'success' => true,
+            'message' => 'Task updated successfully',
+            'tasks' => $tasks,
+        ]);
     }
 
 
@@ -122,8 +118,12 @@ class TaskController extends Controller
         if ($obj) {
             $obj->delete();
         }
-        return redirect()->route('dashboard')
-            ->with('success', 'Deleted');
+        $tasks = Task::with('category')->get();
+        return response()->json([
+            'success' => true,
+            'message' => 'Task deleted successfully',
+            'tasks' => $tasks
+        ]);
     }
 
 
